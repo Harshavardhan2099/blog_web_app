@@ -2,7 +2,16 @@
 
 A modern, responsive, and feature-rich blogging platform built with Node.js and Express. This application provides a clean and intuitive interface for creating, editing, and managing blog posts with a beautiful Avengers Endgame-inspired theme.
 
-![Harsha Blogs](https://via.placeholder.com/800x400?text=Harsha+Blogs)
+## Screenshots
+
+### Light Mode
+![Homepage Light Mode](./screenshots/homepage_light_mode.png)
+
+### Dark Mode
+![Homepage Dark Mode](./screenshots/homepage_dark_mode.png)
+
+### Editing a Post
+![Editing Post](./screenshots/editing_post.png)
 
 ## Features
 
@@ -77,6 +86,10 @@ blog_web_app/
 ├── public/               # Static files
 │   ├── styles.css        # Main stylesheet
 │   └── images/           # Image assets
+├── screenshots/          # Application screenshots
+│   ├── homepage_light_mode.png
+│   ├── homepage_dark_mode.png
+│   └── editing_post.png
 └── views/                # EJS templates
     ├── create.ejs        # Create post form
     ├── edit.ejs          # Edit post form
