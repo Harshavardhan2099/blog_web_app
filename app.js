@@ -2,71 +2,112 @@ import dotenv from 'dotenv';
 import express from 'express';
 import bodyParser from 'body-parser';
 import mongoose from 'mongoose';
+import expressLayouts from 'express-ejs-layouts';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 dotenv.config();
 const app = express();
 
 // Middleware
 app.set('view engine', 'ejs');
+app.use(expressLayouts);
+app.set('layout', 'layout');
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// Start MongoDB Memory Server and connect
+async function startServer() {
+  try {
+    // Create an in-memory MongoDB server
+    const mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+    console.log(`MongoDB Memory Server running at ${mongoUri}`);
 
-// Define Mongoose Schema and Model
-const postSchema = new mongoose.Schema({
-  title: String,
-  content: String
-});
+    // Connect Mongoose to the in-memory server
+    await mongoose.connect(mongoUri);
+    console.log('Connected to MongoDB Memory Server');
+    
+    // Define Mongoose Schema and Model
+    const postSchema = new mongoose.Schema({
+      title: String,
+      content: String,
+      createdAt: { type: Date, default: Date.now }
+    });
 
-const Post = mongoose.model('Post', postSchema); 
+    const Post = mongoose.model('Post', postSchema);
 
-// list of objects(posts)
-// get / render list 
+    // Routes
+    app.get('/', async (req, res) => {
+      const posts = await Post.find().sort({ createdAt: -1 });
+      res.render('index', { 
+        posts,
+        title: 'SuperBlog - Home'
+      });
+    });
 
-// Routes
-app.get('/', async (req, res) => {
-  const posts = await Post.find();
-  res.render('index', { posts });
-});
+    app.get('/posts/:id', async (req, res) => {
+      const post = await Post.findById(req.params.id);
+      res.render('post', { 
+        post,
+        title: post ? post.title : 'Post Not Found'
+      });
+    });
 
-app.get('/posts/:id', async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  res.render('post', { post });
-});
+    app.get('/create', (req, res) => {
+      res.render('create', {
+        title: 'Create New Post'
+      });
+    });
 
-app.get('/create', (req, res) => {
-  res.render('create');
-});
+    app.post('/create', async (req, res) => {
+      try {
+        console.log('Form data received:', req.body);
+        const { title, content } = req.body;
+        
+        if (!title || !content) {
+          console.error('Missing title or content');
+          return res.status(400).send('Title and content are required');
+        }
+        
+        const newPost = new Post({ title, content });
+        await newPost.save();
+        console.log('Post saved successfully:', newPost);
+        res.redirect('/');
+      } catch (error) {
+        console.error('Error creating post:', error);
+        res.status(500).send('Error creating post');
+      }
+    });
 
-app.post('/create', async (req, res) => {
-  const { title, content } = req.body;
-  const newPost = new Post({ title, content });
-  await newPost.save();
-  res.redirect('/');
-});
+    app.get('/edit/:id', async (req, res) => {
+      const post = await Post.findById(req.params.id);
+      res.render('edit', { 
+        post,
+        title: 'Edit Post'
+      });
+    });
 
-app.get('/edit/:id', async (req, res) => {
-  const post = await Post.findById(req.params.id);
-  res.render('edit', { post });
-});
+    app.post('/edit/:id', async (req, res) => {
+      const { title, content } = req.body;
+      await Post.findByIdAndUpdate(req.params.id, { title, content });
+      res.redirect('/');
+    });
 
-app.post('/edit/:id', async (req, res) => {
-  const { title, content } = req.body;
-  await Post.findByIdAndUpdate(req.params.id, { title, content });
-  res.redirect('/');
-});
+    app.post('/delete/:id', async (req, res) => {
+      await Post.findByIdAndDelete(req.params.id);
+      res.redirect('/');
+    });
 
-app.post('/delete/:id', async (req, res) => {
-  await Post.findByIdAndDelete(req.params.id);
-  res.redirect('/');
-});
+    // Start Server
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`Server is running at http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Error starting server:', error);
+    process.exit(1);
+  }
+}
 
-// Start Server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
-});
+// Start the application
+startServer();
